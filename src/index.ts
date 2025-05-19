@@ -13,7 +13,6 @@
  * - DB: D1Database (Cloudflare D1 binding for credential lookup)
  * - LOGIN_PATH: string (URI of the login form)
  * - SESSION_COOKIE: string (name of the session cookie set by the legacy app, e.g., "SonarrAuth")
- * - PASSWORD_TOKEN: string (unique token value used as a placeholder in the login form password field)
  *
  * D1 Database Schema:
  *   CREATE TABLE user_credentials (
@@ -32,7 +31,6 @@ export interface Env {
 	DB: D1Database;
 	LOGIN_PATH: string;
 	SESSION_COOKIE: string;
-	PASSWORD_TOKEN: string;
 }
 
 export default {
@@ -51,6 +49,7 @@ export default {
 			const creds = await getLegacyCredentials(env.DB, accessEmail);
 			const legacy_username = creds?.legacy_username || '';
 			const originResp = await fetch(request);
+			const passwordToken = generatePasswordToken(accessEmail);
 			let html = await originResp.text();
 
 			html = html.replace(
@@ -58,7 +57,7 @@ export default {
 				`<script>
         window.addEventListener('DOMContentLoaded', () => {
           document.querySelector('input[name="username"]').value = "${legacy_username}";
-          document.querySelector('input[name="password"]').value = "${env.PASSWORD_TOKEN}";
+          document.querySelector('input[name="password"]').value = "${passwordToken}";
           document.querySelector('form').submit();
         });
         </script></body>`,
@@ -75,7 +74,9 @@ export default {
 			const contentType = request.headers.get('content-type') || '';
 			if (contentType.includes('application/x-www-form-urlencoded')) {
 				const formData = await request.clone().formData();
-				if (formData.get('password') === env.PASSWORD_TOKEN) {
+				const accessEmail = getUserEmail(request);
+				const passwordToken = generatePasswordToken(accessEmail);
+				if (formData.get('password') === passwordToken) {
 					const accessEmail = getUserEmail(request);
 					const creds = await getLegacyCredentials(env.DB, accessEmail);
 					if (!creds) {
@@ -136,4 +137,10 @@ async function getLegacyCredentials(
 		return { legacy_username: result.legacy_username, legacy_password: result.legacy_password };
 	}
 	return null;
+}
+
+// Helper: Generate temporary password token
+function generatePasswordToken(email: string): string {
+	const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+	return `${email}_${date}`;
 }

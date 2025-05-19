@@ -8,8 +8,9 @@
 
 This Worker enables seamless Single Sign-On (SSO) for legacy web applications that do not natively support SSO or Cloudflare Access. It bridges Cloudflare Access authentication with legacy username/password logins by automatically mapping Access-authenticated users to their legacy credentials and transparently submitting the login form on their behalf.
 
-**Use Case:**
 Suppose you have a self-hosted application that only supports traditional username/password authentication. You want to protect it with Cloudflare Access and give users a true SSO experience, without requiring them to manually enter their legacy credentials.
+
+Even better, the user trying to log in, will not need to know, or will be able to see the password they are loggin in with!
 
 ## How It Works
 
@@ -23,7 +24,7 @@ Suppose you have a self-hosted application that only supports traditional userna
   - The Worker ensures session cookies set by the origin are forwarded to the browser.
 - All other requests are proxied transparently, unless a valid session cookie is already present.
 
-## Example Application: ERP
+## Potential customization
 
 Suppose you want to enable SSO for an ERP system (`erp.example.com`), which only supports local username/password logins.
 
@@ -43,19 +44,18 @@ Additionally, the Worker assumes that the username form field is called `usernam
 
 ### 2. Prepare the D1 Database
 
-Create a D1 database and a `user_credentials` table using the schema in `schema.sql`.
+Create a D1 database (if not done by the Deploy button above) and a `user_credentials` table using the schema in `schema.sql`.
 
 ```sh
 $ npx wrangler d1 create user-credentials
 $ npx wrangler d1 execute user-credentials --remote --file=./schema.sql
 ```
 
-Insert mappings for your users by visiting the [Cloudflare D1](https://dash.cloudflare.com/?to=/:account/workers/d1) section of the dashboard and the created D1 database.
+Insert mappings for your users by visiting the [Cloudflare D1](https://dash.cloudflare.com/?to=/:account/workers/d1) section of the dashboard and the created D1 database and table.
 
 ### 3. Deploy the Worker
 
-- Clone or copy the Worker script.
-- Bind the following environment variables in your `wrangler.jsonc`:
+Configure the required environment variables in your `wrangler.jsonc`:
 
 ```jsonc
 {
@@ -69,20 +69,19 @@ Insert mappings for your users by visiting the [Cloudflare D1](https://dash.clou
   "vars": {
     "LOGIN_PATH": "/login",
     "SESSION_COOKIE": "app-session",
-    "PASSWORD_TOKEN": "asdfasdf"
   }
 }
 ```
 
-Add the route for an application (you can make this more specific to the login paht if you want):
+Add the route for an application (you can make this more specific to the login path if you want):
 
 ```jsonc
 "routes": [
-		{
-			"pattern": "erp.example.com/*",
-			"zone_name": "example.com",
-		},
-	],
+  {
+    "pattern": "erp.example.com/*",
+    "zone_name": "example.com",
+  },
+],
 ```
 
 Deploy the Worker:
@@ -94,7 +93,7 @@ npx wrangler deploy
 ### 4. Configure Cloudflare Access
 
 - Protect your legacy app’s URL with Access.
-- Ensure the Access policy includes the ```cf-access-authenticated-user-email``` header.
+- Ensure the Access policy includes the `cf-access-authenticated-user-email` header.
 
 ### 5. Test the Integration
 
@@ -104,7 +103,7 @@ npx wrangler deploy
 ## Security Notes
 
 - Store legacy passwords securely in D1.
-- Use a long, unique `PASSWORD_TOKEN` but note that this will be available in plaintext in the HTML of the intercepted page. It cannot be used to log in to any application, but is matched on as a 'placeholder' to replace with the real password to the origin.
+- Note that the temporary password will be available in plaintext in the HTML of the intercepted page. It cannot be used to log in to any application, but is matched on as a 'placeholder' to replace with the real password to the origin.
 - Only deploy this Worker for applications where you control both the authentication mapping and the backend.
 
 ## Troubleshooting
