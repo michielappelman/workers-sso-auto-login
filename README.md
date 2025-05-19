@@ -2,7 +2,7 @@
 
 **This Worker lets you retrofit SSO onto legacy web apps—no code changes required on the app itself.**
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https%3A%2F%2Fgithub.com%2Fmichielappelman%2Fworkers-auto-login)
+![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https%3A%2F%2Fgithub.com%2Fmichielappelman%2Fworkers-sso-auto-login)
 
 ## Overview
 
