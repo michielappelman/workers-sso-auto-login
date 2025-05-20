@@ -10,7 +10,7 @@
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "auto-login-worker",
+			"database_name": "workers-sso-auto-login-d1",
 			"database_id": "example-id",
 		},
 	],

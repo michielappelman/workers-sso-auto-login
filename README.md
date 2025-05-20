@@ -47,25 +47,25 @@ Additionally, the Worker assumes that the username form field is called `usernam
 Create a D1 database (if not done by the Deploy button above).
 
 ```sh
-$ npx wrangler d1 create auto-login-worker
+npx wrangler d1 create workers-sso-auto-login-d1
 ```
 
-Install [Drizzle ORM](https://orm.drizzle.team) as a dependency:
+Install dependencies, such as [Drizzle ORM](https://orm.drizzle.team):
 
 ```sh
-npm install drizzle-orm
+npm install
 ```
 
-Generate a migration based on the schema:
+Generate an SQL file based on the schema:
 
 ```sh
-npx drizzle-kit generate:sqlite --schema=./src/schema.ts --out=./migrations
+npx drizzle-kit generate --name create-db
 ```
 
 Apply the migration:
 
 ```sh
-npx wrangler d1 migrations apply auto-login-worker
+npx wrangler d1 execute workers-sso-auto-login-d1 --remote --file=./drizzle/0000_create-db.sql
 ```
 
 Insert mappings for your users by visiting the [Cloudflare D1](https://dash.cloudflare.com/?to=/:account/workers/d1) section of the dashboard and the created D1 database and table.
