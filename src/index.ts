@@ -1,31 +1,6 @@
-/**
- * Cloudflare Worker for credential injection and legacy authentication proxying.
- *
- * Functionality:
- * - Intercepts requests to the legacy application's login page.
- * - Auto-fills the login form with a mapped legacy username and a temporary password token for users authenticated via Cloudflare Access.
- * - On login form POST, replaces the temporary password token with the actual legacy password (looked up from a D1 database) and proxies the login request to the origin.
- * - Preserves all other form fields and essential headers.
- * - Forwards Set-Cookie headers from the origin to the client to maintain session state.
- * - Proxies all other requests transparently, except when a valid session cookie is present (in which case it bypasses credential injection).
- *
- * Environment Bindings:
- * - DB: D1Database (Cloudflare D1 binding for credential lookup)
- * - LOGIN_PATH: string (URI of the login form)
- * - SESSION_COOKIE: string (name of the session cookie set by the legacy app, e.g., "SonarrAuth")
- *
- * D1 Database Schema:
- *   CREATE TABLE user_credentials (
- *     access_email TEXT PRIMARY KEY,         -- Email address from Cloudflare Access
- *     legacy_username TEXT NOT NULL,         -- Username for the legacy application
- *     legacy_password TEXT NOT NULL          -- Password for the legacy application
- *   );
- *
- * Usage:
- * - Populate the D1 table with mappings from Access email addresses to legacy usernames and passwords.
- * - Configure the LOGIN_PATH, SESSION_COOKIE and PASSWORD_TOKEN bindings in your Worker environment.
- * - Deploy the Worker in front of your legacy application to enable seamless SSO for users authenticated via Cloudflare Access.
- */
+import { drizzle } from 'drizzle-orm/d1';
+import { eq } from 'drizzle-orm';
+import { userCredentials, type LegacyCredentials } from './schema';
 
 export interface Env {
 	DB: D1Database;
@@ -46,7 +21,8 @@ export default {
 		// 2. Intercept login page to inject JS/token
 		if (url.pathname === env.LOGIN_PATH && request.method === 'GET') {
 			const accessEmail = getUserEmail(request);
-			const creds = await getLegacyCredentials(env.DB, accessEmail);
+			const db = drizzle(env.DB);
+			const creds = await getLegacyCredentials(db, accessEmail);
 			// If there are no credentials, proxy directly so user can log in with their own credentials.
 			if (!creds) {
 				return fetch(request);
@@ -60,7 +36,7 @@ export default {
 				'</body>',
 				`<script>
         window.addEventListener('DOMContentLoaded', () => {
-          document.querySelector('input[name="username"]').value = "${creds.legacy_username}";
+          document.querySelector('input[name="username"]').value = "${creds.legacyUsername}";
           document.querySelector('input[name="password"]').value = "${passwordToken}";
           document.querySelector('form').submit();
         });
@@ -81,15 +57,15 @@ export default {
 				const accessEmail = getUserEmail(request);
 				const passwordToken = generatePasswordToken(accessEmail);
 				if (formData.get('password') === passwordToken) {
-					const accessEmail = getUserEmail(request);
-					const creds = await getLegacyCredentials(env.DB, accessEmail);
+					const db = drizzle(env.DB);
+					const creds = await getLegacyCredentials(db, accessEmail);
 					// If there are no credentials, proxy directly so user can log in with their own credentials.
 					if (!creds) {
 						return fetch(request);
 					}
 
-					formData.set('username', creds.legacy_username);
-					formData.set('password', creds.legacy_password);
+					formData.set('username', creds.legacyUsername);
+					formData.set('password', creds.legacyPassword);
 
 					const newBody = new URLSearchParams();
 					for (const [k, v] of formData.entries()) newBody.append(k, v as string);
@@ -132,15 +108,19 @@ function getUserEmail(request: Request): string {
 	return request.headers.get('cf-access-authenticated-user-email') || 'unknown@example.com';
 }
 
-// Helper: Lookup legacy credentials from D1
-async function getLegacyCredentials(
-	db: D1Database,
-	accessEmail: string,
-): Promise<{ legacy_username: string; legacy_password: string } | null> {
-	const stmt = db.prepare('SELECT legacy_username, legacy_password FROM user_credentials WHERE access_email = ?');
-	const result = await stmt.bind(accessEmail).first();
-	if (result && result.legacy_username && result.legacy_password) {
-		return { legacy_username: result.legacy_username, legacy_password: result.legacy_password };
+// Helper: Lookup legacy credentials from D1 using Drizzle ORM
+async function getLegacyCredentials(db: ReturnType<typeof drizzle>, accessEmail: string): Promise<LegacyCredentials | null> {
+	const results = await db
+		.select({
+			legacyUsername: userCredentials.legacyUsername,
+			legacyPassword: userCredentials.legacyPassword,
+		})
+		.from(userCredentials)
+		.where(eq(userCredentials.accessEmail, accessEmail))
+		.all();
+
+	if (results.length > 0) {
+		return results[0];
 	}
 	return null;
 }

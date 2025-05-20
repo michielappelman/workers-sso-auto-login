@@ -3,13 +3,14 @@
 	"name": "workers-sso-auto-login",
 	"main": "src/index.ts",
 	"compatibility_date": "2025-05-19",
+	"compatibility_flags": ["nodejs_compat"],
 	"observability": {
 		"enabled": true,
 	},
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "sso-auto-login",
+			"database_name": "auto-login-worker",
 			"database_id": "example-id",
 		},
 	],

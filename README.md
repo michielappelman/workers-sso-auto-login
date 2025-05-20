@@ -44,11 +44,28 @@ Additionally, the Worker assumes that the username form field is called `usernam
 
 ### 2. Prepare the D1 Database
 
-Create a D1 database (if not done by the Deploy button above) and a `user_credentials` table using the schema in `schema.sql`.
+Create a D1 database (if not done by the Deploy button above).
 
 ```sh
-$ npx wrangler d1 create user-credentials
-$ npx wrangler d1 execute user-credentials --remote --file=./schema.sql
+$ npx wrangler d1 create auto-login-worker
+```
+
+Install [Drizzle ORM](https://orm.drizzle.team) as a dependency:
+
+```sh
+npm install drizzle-orm
+```
+
+Generate a migration based on the schema:
+
+```sh
+npx drizzle-kit generate:sqlite --schema=./src/schema.ts --out=./migrations
+```
+
+Apply the migration:
+
+```sh
+npx wrangler d1 migrations apply auto-login-worker
 ```
 
 Insert mappings for your users by visiting the [Cloudflare D1](https://dash.cloudflare.com/?to=/:account/workers/d1) section of the dashboard and the created D1 database and table.
@@ -62,7 +79,7 @@ Configure the required environment variables in your `wrangler.jsonc`:
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "user-credentials",
+      "database_name": "auto-login-worker",
       "database_id": "example-id"
     }
   ],
