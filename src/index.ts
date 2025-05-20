@@ -47,7 +47,11 @@ export default {
 		if (url.pathname === env.LOGIN_PATH && request.method === 'GET') {
 			const accessEmail = getUserEmail(request);
 			const creds = await getLegacyCredentials(env.DB, accessEmail);
-			const legacy_username = creds?.legacy_username || '';
+			// If there are no credentials, proxy directly so user can log in with their own credentials.
+			if (!creds) {
+				return fetch(request);
+			}
+
 			const originResp = await fetch(request);
 			const passwordToken = generatePasswordToken(accessEmail);
 			let html = await originResp.text();
@@ -56,7 +60,7 @@ export default {
 				'</body>',
 				`<script>
         window.addEventListener('DOMContentLoaded', () => {
-          document.querySelector('input[name="username"]').value = "${legacy_username}";
+          document.querySelector('input[name="username"]').value = "${creds.legacy_username}";
           document.querySelector('input[name="password"]').value = "${passwordToken}";
           document.querySelector('form').submit();
         });
@@ -79,9 +83,11 @@ export default {
 				if (formData.get('password') === passwordToken) {
 					const accessEmail = getUserEmail(request);
 					const creds = await getLegacyCredentials(env.DB, accessEmail);
+					// If there are no credentials, proxy directly so user can log in with their own credentials.
 					if (!creds) {
-						return new Response('Unauthorized', { status: 401 });
+						return fetch(request);
 					}
+
 					formData.set('username', creds.legacy_username);
 					formData.set('password', creds.legacy_password);
 
