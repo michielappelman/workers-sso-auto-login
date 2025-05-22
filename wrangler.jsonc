@@ -15,4 +15,5 @@
 		},
 	],
 	"vars": { "ADMIN_HOSTNAME": "app-admin.example.com" },
+	"workers_dev": false,
 }
