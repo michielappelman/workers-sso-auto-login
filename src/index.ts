@@ -1,28 +1,42 @@
 import { drizzle } from 'drizzle-orm/d1';
-import { eq } from 'drizzle-orm';
-import { userCredentials, type LegacyCredentials } from './schema';
+import { eq, and } from 'drizzle-orm';
+import { userCredentials, appConfig, type LegacyCredentials, type AppConfig } from './schema';
+import { handleAdminRequest } from './admin/admin';
 
 export interface Env {
 	DB: D1Database;
-	LOGIN_PATH: string;
-	SESSION_COOKIE: string;
+	ADMIN_HOSTNAME: string;
 }
 
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 		const url = new URL(request.url);
 
-		// 1. If session cookie is present, proxy request directly
-		const cookieHeader = request.headers.get('cookie') || '';
-		if (cookieHeader.includes(`${env.SESSION_COOKIE}=`)) {
+		// Check if request is for admin portal
+		if (url.hostname === env.ADMIN_HOSTNAME) {
+			return handleAdminRequest(request, env);
+		}
+
+		// Retrieve configuration from database
+		const db = drizzle(env.DB);
+		const configArray = await db.select().from(appConfig).where(eq(appConfig.hostname, url.hostname)).limit(1);
+		const config = configArray[0];
+
+		// Proxy directly if no configuration found
+		if (!config) {
 			return fetch(request);
 		}
 
-		// 2. Intercept login page to inject JS/token
-		if (url.pathname === env.LOGIN_PATH && request.method === 'GET') {
+		// If the configured session cookie is present, proxy request directly
+		const cookieHeader = request.headers.get('cookie') || '';
+		const sessionCookie = `session=${config.sessionCookie}`;
+		if (cookieHeader.includes(sessionCookie)) {
+			return fetch(request);
+		}
+
+		if (url.pathname === config.loginPath && request.method === 'GET') {
 			const accessEmail = getUserEmail(request);
-			const db = drizzle(env.DB);
-			const creds = await getLegacyCredentials(db, accessEmail);
+			const creds = await getLegacyCredentials(db, config.hostname, accessEmail);
 			// If there are no credentials, proxy directly so user can log in with their own credentials.
 			if (!creds) {
 				return fetch(request);
@@ -32,13 +46,16 @@ export default {
 			const passwordToken = generatePasswordToken(accessEmail);
 			let html = await originResp.text();
 
+			// Add JavaScript code to automatically submit if autoLogin is enabled
+			const autoSubmitJavaScript = config.autoLogin ? `document.querySelector('form').submit();` : '';
+
 			html = html.replace(
 				'</body>',
 				`<script>
         window.addEventListener('DOMContentLoaded', () => {
-          document.querySelector('input[name="username"]').value = "${creds.legacyUsername}";
-          document.querySelector('input[name="password"]').value = "${passwordToken}";
-          document.querySelector('form').submit();
+          document.querySelector('input[name="${config.usernameField}"]').value = "${creds.legacyUsername}";
+          document.querySelector('input[name="${config.passwordField}"]').value = "${passwordToken}";
+          ${autoSubmitJavaScript}
         });
         </script></body>`,
 			);
@@ -49,23 +66,29 @@ export default {
 			});
 		}
 
-		// 3. Handle login POST requests and replace token password with real password
-		if (url.pathname === env.LOGIN_PATH && request.method === 'POST') {
+		// Handle login POST requests and replace token password with real password
+		if (url.pathname === config.loginPath && request.method === 'POST') {
 			const contentType = request.headers.get('content-type') || '';
 			if (contentType.includes('application/x-www-form-urlencoded')) {
 				const formData = await request.clone().formData();
 				const accessEmail = getUserEmail(request);
 				const passwordToken = generatePasswordToken(accessEmail);
-				if (formData.get('password') === passwordToken) {
+
+				if (formData.get(config.passwordField) === passwordToken) {
 					const db = drizzle(env.DB);
-					const creds = await getLegacyCredentials(db, accessEmail);
-					// If there are no credentials, proxy directly so user can log in with their own credentials.
+					const creds = await getLegacyCredentials(db, config.hostname, accessEmail);
+					// If there are no credentials, block the request
 					if (!creds) {
-						return fetch(request);
+						return new Response('Unauthorized - No credentials found for this user', {
+							status: 401,
+							headers: {
+								'Content-Type': 'text/plain',
+							},
+						});
 					}
 
-					formData.set('username', creds.legacyUsername);
-					formData.set('password', creds.legacyPassword);
+					formData.set(config.usernameField, creds.legacyUsername);
+					formData.set(config.passwordField, creds.legacyPassword);
 
 					const newBody = new URLSearchParams();
 					for (const [k, v] of formData.entries()) newBody.append(k, v as string);
@@ -98,7 +121,7 @@ export default {
 			}
 		}
 
-		// 4. Proxy all other requests
+		// Proxy all other requests
 		return fetch(request);
 	},
 } satisfies ExportedHandler<Env>;
@@ -109,16 +132,16 @@ function getUserEmail(request: Request): string {
 }
 
 // Helper: Lookup legacy credentials from D1 using Drizzle ORM
-async function getLegacyCredentials(db: ReturnType<typeof drizzle>, accessEmail: string): Promise<LegacyCredentials | null> {
+async function getLegacyCredentials(
+	db: ReturnType<typeof drizzle>,
+	appHostname: string,
+	accessEmail: string,
+): Promise<LegacyCredentials | null> {
 	const results = await db
-		.select({
-			legacyUsername: userCredentials.legacyUsername,
-			legacyPassword: userCredentials.legacyPassword,
-		})
+		.select()
 		.from(userCredentials)
-		.where(eq(userCredentials.accessEmail, accessEmail))
+		.where(and(eq(userCredentials.appHostname, appHostname), eq(userCredentials.accessEmail, accessEmail)))
 		.all();
-
 	if (results.length > 0) {
 		return results[0];
 	}

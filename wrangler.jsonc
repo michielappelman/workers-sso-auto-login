@@ -14,14 +14,15 @@
 			"database_id": "example-id",
 		},
 	],
-	"vars": {
-		"LOGIN_PATH": "/login",
-		"SESSION_COOKIE": "app-session",
-	},
+	"vars": { "ADMIN_HOSTNAME": "app-admin.nayuki.nl" },
 	"routes": [
 		{
 			"pattern": "erp.example.com/*",
 			"zone_name": "example.com",
+		},
+		{
+			"pattern": "app-admin.example.com",
+			"custom_domain": true,
 		},
 	],
 }

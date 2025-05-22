@@ -8,29 +8,32 @@
 
 This Worker enables seamless Single Sign-On (SSO) for legacy web applications that do not natively support SSO or Cloudflare Access. It bridges Cloudflare Access authentication with legacy username/password logins by automatically mapping Access-authenticated users to their legacy credentials and transparently submitting the login form on their behalf.
 
-Suppose you have a self-hosted application that only supports traditional username/password authentication. You want to protect it with Cloudflare Access and give users a true SSO experience, without requiring them to manually enter their legacy credentials.
-
-Even better, the user trying to log in, will not need to know, or will be able to see the password they are loggin in with!
+Even better, the user trying to log in will not need to know, or will be able to see the password they are logging in with!
 
 ## How It Works
 
 - When a user accesses the login page, the Worker:
-  - Looks up the user’s Cloudflare Access email in a D1 database.
+  - Looks up the user's Cloudflare Access email in a D1 database.
   - Auto-fills the login form with the mapped legacy username and a temporary password token.
-  - Submits the form automatically.
+  - Submits the form automatically (if auto-login is enabled).
 - When the login form is `POST`ed:
   - If the password matches the temporary token, the Worker swaps it for the real legacy password from D1 and proxies the POST to the origin.
   - All other form fields are preserved.
   - The Worker ensures session cookies set by the origin are forwarded to the browser.
 - All other requests are proxied transparently, unless a valid session cookie is already present.
 
-## Potential customization
+## Admin Portal
 
-Suppose you want to enable SSO for an ERP system (`erp.example.com`), which only supports local username/password logins.
+This project now includes a full-featured admin portal that allows you to:
 
-This Worker assumes that the login form of this ERP system is available on the `erp.example.com/login` URL, but it also assumes that the form `POST`s to the same URI. This might be different for your application(s), so customization might be needed.
-
-Additionally, the Worker assumes that the username form field is called `username`, and the password field `password`. Again, this might require some customization.
+- Manage protected applications
+  - Add new applications to protect with SSO
+  - Configure login paths, form field names, and session cookies
+  - Enable/disable auto-login for each application
+- Manage user credentials
+  - Map Cloudflare Access emails to legacy credentials
+  - Add, view, and delete user mappings
+  - Securely store passwords in the D1 database
 
 ## Getting Started
 
@@ -68,8 +71,6 @@ Apply the migration:
 npx wrangler d1 execute workers-sso-auto-login-d1 --remote --file=./drizzle/0000_create-db.sql
 ```
 
-Insert mappings for your users by visiting the [Cloudflare D1](https://dash.cloudflare.com/?to=/:account/workers/d1) section of the dashboard and the created D1 database and table.
-
 ### 3. Deploy the Worker
 
 Configure the required environment variables in your `wrangler.jsonc`:
@@ -84,19 +85,22 @@ Configure the required environment variables in your `wrangler.jsonc`:
     }
   ],
   "vars": {
-    "LOGIN_PATH": "/login",
-    "SESSION_COOKIE": "app-session",
+    "ADMIN_HOSTNAME": "admin.example.com"
   }
 }
 ```
 
-Add the route for an application (you can make this more specific to the login path if you want):
+Add routes for your applications and the admin portal:
 
 ```jsonc
 "routes": [
   {
     "pattern": "erp.example.com/*",
     "zone_name": "example.com",
+  },
+  {
+    "pattern": "app-admin.example.com",
+    "custom_domain": true,
   },
 ],
 ```
@@ -109,25 +113,51 @@ npx wrangler deploy
 
 ### 4. Configure Cloudflare Access
 
-- Protect your legacy app’s URL with Access.
-- Ensure the Access policy includes the `cf-access-authenticated-user-email` header.
+- Protect your admin portal URL with Access.
+- Protect your legacy app's URL with Access.
 
-### 5. Test the Integration
+### 5. Configure Applications and Users via Admin Portal
 
-- Visit your application’s login page.
+1. Visit your admin portal at the configured hostname (e.g., `app-admin.example.com`).
+2. Add your applications with the following details:
+   - Hostname (e.g., `erp.example.com`)
+   - Login path (e.g., `/login`)
+   - Username field name
+   - Password field name
+   - Session cookie name
+   - Auto-login setting
+3. For each application, add user mappings:
+   - Access email (from Cloudflare Access)
+   - Legacy username
+   - Legacy password
+
+### 6. Test the Integration
+
+- Visit your application's login page.
 - You should be auto-logged in as the mapped legacy user, without needing to enter credentials.
+
+## Potential Customization
+
+Different applications may use different login forms and field names. The admin portal allows you to configure:
+
+- The login path for each application
+- The form field names for username and password
+- The session cookie name used by the application
+- Whether to auto-submit the login form
 
 ## Security Notes
 
-- Store legacy passwords securely in D1.
+- Passwords are stored securely in D1.
 - Note that the temporary password will be available in plaintext in the HTML of the intercepted page. It cannot be used to log in to any application, but is matched on as a 'placeholder' to replace with the real password to the origin.
 - Only deploy this Worker for applications where you control both the authentication mapping and the backend.
+- Ensure your admin portal is properly protected with Cloudflare Access.
 
 ## Troubleshooting
 
 - If login fails, check:
-  - The D1 mapping for the user’s email.
+  - The D1 mapping for the user's email.
   - The Worker logs for POST body and header mismatches.
+  - Application configuration in the admin portal.
 - Compare network requests from manual and Worker-driven logins using browser dev tools.
 
 ## References
