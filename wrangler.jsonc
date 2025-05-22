@@ -14,7 +14,7 @@
 			"database_id": "example-id",
 		},
 	],
-	"vars": { "ADMIN_HOSTNAME": "app-admin.nayuki.nl" },
+	"vars": { "ADMIN_HOSTNAME": "app-admin.example.com" },
 	"routes": [
 		{
 			"pattern": "erp.example.com/*",
