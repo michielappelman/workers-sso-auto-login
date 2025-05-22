@@ -22,6 +22,8 @@ Even better, the user trying to log in will not need to know, or will be able to
   - The Worker ensures session cookies set by the origin are forwarded to the browser.
 - All other requests are proxied transparently, unless a valid session cookie is already present.
 
+![Diagram showing the SSO credential injection workflow](resources/diagram.jpg)
+
 ## Admin Portal
 
 This project now includes a full-featured admin portal that allows you to:
