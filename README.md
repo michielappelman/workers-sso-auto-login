@@ -87,7 +87,7 @@ Configure the required environment variables in your `wrangler.jsonc`:
     }
   ],
   "vars": {
-    "ADMIN_HOSTNAME": "admin.example.com"
+    "ADMIN_HOSTNAME": "app-admin.example.com"
   }
 }
 ```
