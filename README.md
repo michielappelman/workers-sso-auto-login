@@ -59,6 +59,8 @@ Set the `ADMIN_HOSTNAME` environment variable in your Worker configuration to th
 
 Add routes for your legacy applications behind Cloudflare Access, and a Custom Domain for the admin portal in the Worker settings. See for more information, the Cloudflare Developer Documentation on [Worker Routes](https://developers.cloudflare.com/workers/configuration/routing/routes/).
 
+![Worker Routes Screenshot](resources/routes.png)
+
 ### 4. Configure Cloudflare Access
 
 - Protect your admin portal URL with Access.
