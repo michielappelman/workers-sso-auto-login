@@ -37,7 +37,7 @@ This project now includes a full-featured admin portal that allows you to:
   - Add, view, and delete user mappings
   - Securely store passwords in the D1 database
 
-![Admin Portal Screenshot](resources/admin_portal.png)
+![Admin Portal Screenshot](resources/admin-portal.png)
 
 ## Getting Started
 
