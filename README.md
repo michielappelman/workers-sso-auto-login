@@ -47,71 +47,15 @@ This project now includes a full-featured admin portal that allows you to:
 - [Cloudflare D1](https://developers.cloudflare.com/d1/)
 - Your legacy app must be behind Cloudflare and protected by Access.
 
-### 2. Prepare the D1 Database
+### 2. Deploy the Worker
 
-Create a D1 database (if not done by the Deploy button above).
+Use the Deploy button above to deploy the worker. This will create a new D1 database for you, and populate it with the necessary tables.
 
-```sh
-npx wrangler d1 create workers-sso-auto-login-d1
-```
+### 3. Configure the Worker
 
-Install dependencies, such as [Drizzle ORM](https://orm.drizzle.team):
+Set the `ADMIN_HOSTNAME` environment variable in your Worker configuration to the hostname you'd like to use for the admin portal.
 
-```sh
-npm install
-```
-
-Generate an SQL file based on the schema:
-
-```sh
-npx drizzle-kit generate --name create-db
-```
-
-Apply the migration:
-
-```sh
-npx wrangler d1 execute workers-sso-auto-login-d1 --remote --file=./drizzle/0000_create-db.sql
-```
-
-### 3. Deploy the Worker
-
-Configure the required environment variables in your `wrangler.jsonc`:
-
-```jsonc
-{
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "auto-login-worker",
-      "database_id": "example-id"
-    }
-  ],
-  "vars": {
-    "ADMIN_HOSTNAME": "app-admin.example.com"
-  }
-}
-```
-
-Add routes for your applications and the admin portal:
-
-```jsonc
-"routes": [
-  {
-    "pattern": "erp.example.com/*",
-    "zone_name": "example.com",
-  },
-  {
-    "pattern": "app-admin.example.com",
-    "custom_domain": true,
-  },
-],
-```
-
-Deploy the Worker:
-
-```sh
-npx wrangler deploy
-```
+Add routes for your applications and the admin portal in the Worker settings.
 
 ### 4. Configure Cloudflare Access
 
