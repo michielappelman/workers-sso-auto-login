@@ -37,6 +37,8 @@ This project now includes a full-featured admin portal that allows you to:
   - Add, view, and delete user mappings
   - Securely store passwords in the D1 database
 
+![Admin Portal Screenshot](resources/admin_portal.png)
+
 ## Getting Started
 
 ### 1. Prerequisites
@@ -55,7 +57,7 @@ Use the Deploy button above to deploy the worker. This will create a new D1 data
 
 Set the `ADMIN_HOSTNAME` environment variable in your Worker configuration to the hostname you'd like to use for the admin portal.
 
-Add routes for your applications and the admin portal in the Worker settings.
+Add routes for your legacy applications behind Cloudflare Access, and a Custom Domain for the admin portal in the Worker settings. See for more information, the Cloudflare Developer Documentation on [Worker Routes](https://developers.cloudflare.com/workers/configuration/routing/routes/).
 
 ### 4. Configure Cloudflare Access
 
