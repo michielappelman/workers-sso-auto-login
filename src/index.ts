@@ -29,7 +29,7 @@ export default {
 
 		// If the configured session cookie is present, proxy request directly
 		const cookieHeader = request.headers.get('cookie') || '';
-		const sessionCookie = `session=${config.sessionCookie}`;
+		const sessionCookie = `${config.sessionCookie}=`;
 		if (cookieHeader.includes(sessionCookie)) {
 			return fetch(request);
 		}
@@ -42,12 +42,51 @@ export default {
 				return fetch(request);
 			}
 
+			// If autoLogin is enabled, directly submit the form instead of serving the login page
+			if (config.autoLogin) {
+				// Create form data with the credentials
+				const formData = new URLSearchParams();
+				formData.append(config.usernameField, creds.legacyUsername);
+				formData.append(config.passwordField, creds.legacyPassword);
+
+				// Submit the form directly
+				const loginRequest = new Request(request.url, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/x-www-form-urlencoded',
+						'User-Agent': request.headers.get('User-Agent') || '',
+						Cookie: request.headers.get('Cookie') || '',
+						Accept: request.headers.get('Accept') || 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+						Referer: request.url,
+					},
+					body: formData,
+					redirect: 'manual',
+				});
+
+				const loginResponse = await fetch(loginRequest);
+
+				// If login was successful (status < 400), serve the response with session cookie
+				if (loginResponse.status < 400) {
+					const newHeaders = new Headers(loginResponse.headers);
+					const setCookie = loginResponse.headers.get('set-cookie');
+					if (setCookie) {
+						newHeaders.set('set-cookie', setCookie);
+					}
+
+					return new Response(loginResponse.body, {
+						status: loginResponse.status,
+						headers: newHeaders,
+					});
+				}
+
+				// If login failed, return the login response as-is
+				return loginResponse;
+			}
+
+			// For non-autoLogin, serve the login page with JavaScript injection
 			const originResp = await fetch(request);
 			const passwordToken = generatePasswordToken(accessEmail);
 			let html = await originResp.text();
-
-			// Add JavaScript code to automatically submit if autoLogin is enabled
-			const autoSubmitJavaScript = config.autoLogin ? `document.querySelector('form').submit();` : '';
 
 			html = html.replace(
 				'</body>',
@@ -55,7 +94,6 @@ export default {
         window.addEventListener('DOMContentLoaded', () => {
           document.querySelector('input[name="${config.usernameField}"]').value = "${creds.legacyUsername}";
           document.querySelector('input[name="${config.passwordField}"]').value = "${passwordToken}";
-          ${autoSubmitJavaScript}
         });
         </script></body>`,
 			);
