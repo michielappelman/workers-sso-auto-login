@@ -12,10 +12,21 @@ Even better, the user trying to log in will not need to know, or will be able to
 
 ## How It Works
 
+The Worker behavior depends on whether auto-login is enabled for each application:
+
+### With Auto-Login Enabled (Recommended)
+- When a user accesses the login page, the Worker:
+  - Looks up the user's Cloudflare Access email in a D1 database.
+  - Directly submits the login form with the mapped legacy credentials without showing the login page.
+  - If login succeeds, forwards the response with session cookies to complete authentication.
+  - If login fails, returns the error response from the origin.
+- The user is seamlessly logged in without seeing or interacting with the login form.
+
+### With Auto-Login Disabled
 - When a user accesses the login page, the Worker:
   - Looks up the user's Cloudflare Access email in a D1 database.
   - Auto-fills the login form with the mapped legacy username and a temporary password token.
-  - Submits the form automatically (if auto-login is enabled).
+  - Serves the login page with credentials pre-filled (user can see the form).
 - When the login form is `POST`ed:
   - If the password matches the temporary token, the Worker swaps it for the real legacy password from D1 and proxies the POST to the origin.
   - All other form fields are preserved.
@@ -84,7 +95,8 @@ Add routes for your legacy applications behind Cloudflare Access, and a Custom D
 ### 6. Test the Integration
 
 - Visit your application's login page.
-- You should be auto-logged in as the mapped legacy user, without needing to enter credentials.
+- If auto-login is enabled: You will be seamlessly logged in without seeing the login form.
+- If auto-login is disabled: The login form will appear with credentials pre-filled, and you can submit it to log in.
 
 ## Potential Customization
 
