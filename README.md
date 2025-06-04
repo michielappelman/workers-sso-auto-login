@@ -33,7 +33,61 @@ The Worker behavior depends on whether auto-login is enabled for each applicatio
   - The Worker ensures session cookies set by the origin are forwarded to the browser.
 - All other requests are proxied transparently, unless a valid session cookie is already present.
 
-![Diagram showing the SSO credential injection workflow](resources/diagram.jpg)
+### Auto-Login Flow (Recommended)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant CF as Cloudflare Access
+    participant Worker as SSO Worker
+    participant D1 as D1 Database
+    participant Origin as Legacy App
+
+    User->>CF: Access login page
+    CF->>Worker: GET /login with cf-access-authenticated-user-email
+    Worker->>D1: Lookup credentials for user email
+    D1-->>Worker: Return legacy username/password
+    
+    alt Credentials found
+        Worker->>Origin: POST /login with legacy credentials
+        Origin-->>Worker: Response with session cookies
+        Worker-->>User: Forward response (user logged in)
+    else No credentials
+        Worker->>Origin: Proxy request directly
+        Origin-->>User: Show login form
+    end
+```
+
+### Non-Auto-Login Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant CF as Cloudflare Access
+    participant Worker as SSO Worker
+    participant D1 as D1 Database
+    participant Origin as Legacy App
+
+    User->>CF: Access login page
+    CF->>Worker: GET /login with cf-access-authenticated-user-email
+    Worker->>D1: Lookup credentials for user email
+    D1-->>Worker: Return legacy username/password
+    
+    alt Credentials found
+        Worker->>Origin: GET /login (fetch original form)
+        Origin-->>Worker: Login page HTML
+        Worker-->>User: Modified HTML with pre-filled username + temp token
+        User->>Worker: POST /login with temp token
+        Worker->>D1: Lookup real password for user
+        D1-->>Worker: Return legacy password
+        Worker->>Origin: POST /login with real credentials
+        Origin-->>Worker: Response with session cookies
+        Worker-->>User: Forward response (user logged in)
+    else No credentials
+        Worker->>Origin: Proxy request directly
+        Origin-->>User: Show login form
+    end
+```
 
 ## Admin Portal
 
