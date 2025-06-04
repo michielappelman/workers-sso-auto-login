@@ -1,37 +1,10 @@
 import { describe, it, expect } from 'vitest';
+import { matchesEmailPattern, getPatternSpecificity } from '../src/index';
 
 interface CredentialPattern {
 	accessEmail: string;
 	legacyUsername: string;
 	legacyPassword: string;
-}
-
-function matchesEmailPattern(pattern: string, email: string): boolean {
-	if (pattern === email) {
-		return true;
-	}
-	
-	if (pattern === '*') {
-		return true;
-	}
-	
-	const regexPattern = pattern
-		.replace(/[.+?^${}()|[\]\\]/g, '\\$&')
-		.replace(/\*/g, '.*');
-	
-	const regex = new RegExp(`^${regexPattern}$`, 'i');
-	return regex.test(email);
-}
-
-function getPatternSpecificity(pattern: string): number {
-	if (pattern === '*') {
-		return 0;
-	}
-	
-	const wildcardCount = (pattern.match(/\*/g) || []).length;
-	const baseScore = pattern.length;
-	
-	return baseScore - (wildcardCount * 10);
 }
 
 function findBestMatch(credentials: CredentialPattern[], userEmail: string): CredentialPattern | null {

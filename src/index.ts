@@ -188,7 +188,7 @@ async function getLegacyCredentials(
 	return matchingCredentials.length > 0 ? matchingCredentials[0] : null;
 }
 
-function matchesEmailPattern(pattern: string, email: string): boolean {
+export function matchesEmailPattern(pattern: string, email: string): boolean {
 	if (pattern === email) {
 		return true;
 	}
@@ -205,7 +205,7 @@ function matchesEmailPattern(pattern: string, email: string): boolean {
 	return regex.test(email);
 }
 
-function getPatternSpecificity(pattern: string): number {
+export function getPatternSpecificity(pattern: string): number {
 	if (pattern === '*') {
 		return 0;
 	}
