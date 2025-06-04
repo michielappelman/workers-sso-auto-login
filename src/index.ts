@@ -175,15 +175,45 @@ async function getLegacyCredentials(
 	appHostname: string,
 	accessEmail: string,
 ): Promise<LegacyCredentials | null> {
-	const results = await db
+	const allCredentials = await db
 		.select()
 		.from(userCredentials)
-		.where(and(eq(userCredentials.appHostname, appHostname), eq(userCredentials.accessEmail, accessEmail)))
+		.where(eq(userCredentials.appHostname, appHostname))
 		.all();
-	if (results.length > 0) {
-		return results[0];
+	
+	const matchingCredentials = allCredentials
+		.filter(cred => matchesEmailPattern(cred.accessEmail, accessEmail))
+		.sort((a, b) => getPatternSpecificity(b.accessEmail) - getPatternSpecificity(a.accessEmail));
+	
+	return matchingCredentials.length > 0 ? matchingCredentials[0] : null;
+}
+
+export function matchesEmailPattern(pattern: string, email: string): boolean {
+	if (pattern === email) {
+		return true;
 	}
-	return null;
+	
+	if (pattern === '*') {
+		return true;
+	}
+	
+	const regexPattern = pattern
+		.replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+		.replace(/\*/g, '.*');
+	
+	const regex = new RegExp(`^${regexPattern}$`, 'i');
+	return regex.test(email);
+}
+
+export function getPatternSpecificity(pattern: string): number {
+	if (pattern === '*') {
+		return 0;
+	}
+	
+	const wildcardCount = (pattern.match(/\*/g) || []).length;
+	const baseScore = pattern.length;
+	
+	return baseScore - (wildcardCount * 10);
 }
 
 // Helper: Generate temporary password token

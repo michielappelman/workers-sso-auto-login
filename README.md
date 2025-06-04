@@ -88,9 +88,16 @@ Add routes for your legacy applications behind Cloudflare Access, and a Custom D
    - Session cookie name
    - Auto-login setting
 3. For each application, add user mappings:
-   - Access email (from Cloudflare Access)
+   - Access email pattern (supports wildcards with `*`)
    - Legacy username
    - Legacy password
+
+   **Wildcard Pattern Examples:**
+   - `user@example.com` - Exact match for specific user
+   - `*@example.com` - All users from example.com domain
+   - `*` - Universal fallback for any user
+   
+   More specific patterns take precedence over general ones.
 
 ### 6. Test the Integration
 
