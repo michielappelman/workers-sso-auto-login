@@ -88,7 +88,7 @@ export const UserTable = (props: {
 			<table class="table table-striped table-hover">
 				<thead>
 					<tr>
-						<th scope="col">Access Email</th>
+						<th scope="col">Access Email Pattern</th>
 						<th scope="col">Legacy Username</th>
 						<th scope="col">Legacy Password</th>
 						<th scope="col">Actions</th>
@@ -186,8 +186,12 @@ export const UserForm = (props: { hostname: string }) => {
 			<h2 class="mb-3">Add New User</h2>
 			<div class="row g-3">
 				<div class="col-md-6">
-					<label for="accessEmail" class="form-label">Access Email</label>
-					<input type="email" class="form-control" id="accessEmail" name="accessEmail" required />
+					<label for="accessEmail" class="form-label">Access Email Pattern</label>
+					<input type="text" class="form-control" id="accessEmail" name="accessEmail" required 
+						   placeholder="e.g., user@example.com, *@example.com, *" />
+					<div class="form-text">
+						Use * as wildcard. More specific patterns take precedence (e.g., user@example.com > *@example.com > *)
+					</div>
 				</div>
 				<div class="col-md-6">
 					<label for="legacyUsername" class="form-label">Legacy Username</label>
