@@ -47,15 +47,9 @@ sequenceDiagram
     CF->>Worker: GET /login with cf-access-authenticated-user-email
     Worker->>D1: Lookup credentials for user email
     D1-->>Worker: Return legacy username/password
-    
-    alt Credentials found
-        Worker->>Origin: POST /login with legacy credentials
-        Origin-->>Worker: Response with session cookies
-        Worker-->>User: Forward response (user logged in)
-    else No credentials
-        Worker->>Origin: Proxy request directly
-        Origin-->>User: Show login form
-    end
+    Worker->>Origin: POST /login with legacy credentials
+    Origin-->>Worker: Response with session cookies
+    Worker-->>User: Forward response (user logged in)
 ```
 
 ### Non-Auto-Login Flow
@@ -72,21 +66,15 @@ sequenceDiagram
     CF->>Worker: GET /login with cf-access-authenticated-user-email
     Worker->>D1: Lookup credentials for user email
     D1-->>Worker: Return legacy username/password
-    
-    alt Credentials found
-        Worker->>Origin: GET /login (fetch original form)
-        Origin-->>Worker: Login page HTML
-        Worker-->>User: Modified HTML with pre-filled username + temp token
-        User->>Worker: POST /login with temp token
-        Worker->>D1: Lookup real password for user
-        D1-->>Worker: Return legacy password
-        Worker->>Origin: POST /login with real credentials
-        Origin-->>Worker: Response with session cookies
-        Worker-->>User: Forward response (user logged in)
-    else No credentials
-        Worker->>Origin: Proxy request directly
-        Origin-->>User: Show login form
-    end
+    Worker->>Origin: GET /login (fetch original form)
+    Origin-->>Worker: Login page HTML
+    Worker-->>User: Modified HTML with pre-filled username + temp token
+    User->>Worker: POST /login with temp token
+    Worker->>D1: Lookup real password for user
+    D1-->>Worker: Return legacy password
+    Worker->>Origin: POST /login with real credentials
+    Origin-->>Worker: Response with session cookies
+    Worker-->>User: Forward response (user logged in)
 ```
 
 ## Admin Portal
